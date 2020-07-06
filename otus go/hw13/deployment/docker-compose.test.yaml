@@ -1,0 +1,114 @@
+version: "3.5"
+services:
+  database:
+    env_file:
+      - ./.test.env
+    container_name: ${TEST_DB_HOST}
+    image: postgres:12.1
+    ports:
+      - "5435:5432"
+    restart: always
+    volumes:
+      - ./res/db:/docker-entrypoint-initdb.d:ro
+    environment:
+      POSTGRES_USER: ${TEST_DB_USER}
+      POSTGRES_PASSWORD: ${TEST_DB_PASSWORD}
+      POSTGRES_DB: ${TEST_DB_NAME}
+    networks:
+      - otus-network-test
+  rabbit:
+    container_name: ${TEST_AMPQ_HOST}
+    image: rabbitmq:3.8-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${TEST_AMPQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${TEST_AMPQ_PASSWORD}
+    env_file:
+      - ./.test.env
+    networks:
+      - otus-network-test
+  api:
+    build:
+      context: ..
+      dockerfile: ./deployment/api/Dockerfile
+    container_name: ${API_NAME}
+    ports:
+      - 8888:${HTTP_PORT}
+    networks:
+      - otus-network-test
+    depends_on:
+      - database
+    env_file:
+      - ./.test.env
+    restart: on-failure
+  #    tty: true
+  grpc:
+    build:
+      context: ..
+      dockerfile: ./deployment/grpc/Dockerfile
+    container_name: ${TEST_GRPC_NAME}
+    ports:
+      - 5001:5001
+    networks:
+      - otus-network-test
+    depends_on:
+      - database
+    env_file:
+      - ./.test.env
+    restart: on-failure
+  notifier:
+    build:
+      context: ..
+      dockerfile: ./deployment/notifier/Dockerfile
+    container_name: ${NOTIFIER_NAME}
+    networks:
+      - otus-network-test
+    depends_on:
+      - rabbit
+    env_file:
+      - ./.test.env
+    restart: on-failure
+    environment:
+      WAIT_HOSTS: ${TEST_DB_HOST}:5432, ${TEST_AMPQ_HOST}:5672
+      WAIT_HOSTS_TIMEOUT: 60
+      WAIT_BEFORE_HOSTS: 10
+      WAIT_SLEEP_INTERVAL: 5
+  scheduler:
+    container_name: ${SCHEDULER_NAME}
+    build:
+      context: ..
+      dockerfile: ./deployment/scheduler/Dockerfile
+    networks:
+      - otus-network-test
+    env_file:
+      - ./.test.env
+    environment:
+      WAIT_HOSTS: ${TEST_DB_HOST}:5432, ${TEST_AMPQ_HOST}:5672
+      WAIT_HOSTS_TIMEOUT: 60
+      WAIT_BEFORE_HOSTS: 10
+      WAIT_SLEEP_INTERVAL: 5
+    depends_on:
+      - rabbit
+      - database
+    restart: on-failure
+  tests:
+    build:
+      context: ..
+      dockerfile: ./deployment/tests/Dockerfile
+    container_name: tests
+    env_file:
+      - ./.test.env
+    depends_on:
+      - database
+      - rabbit
+      - scheduler
+      - notifier
+    networks:
+      - otus-network-test
+#    tty: true
+networks:
+  otus-network-test:
+    name: otus-network-test

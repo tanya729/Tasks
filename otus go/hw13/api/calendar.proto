@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+// protoc -I api/ api/calendar.proto --go_out=plugins=grpc:internal/pkg/
+package events;
+option go_package = ".;eventproto";
+
+service EventService {
+  rpc Add (EventAddRequest) returns (EventAddResponse) {
+  }
+  rpc Edit (EventEditRequest) returns (EventEditResponse) {
+  }
+  rpc Delete (EventDeleteRequest) returns (EventDeleteResponse) {
+  }
+  rpc Get (EventGetByIdRequest) returns (EventGetByIdResponse) {
+  }
+  rpc GetAll (EventGetAllRequest) returns (EventGetAllResponse) {
+  }
+  rpc GetDay (EventsGetDayRequest) returns (EventsGetDayResponse) {
+  }
+  rpc GetWeek (EventsGetWeekRequest) returns (EventsGetWeekResponse) {
+  }
+  rpc GetMonth (EventsGetMonthRequest) returns (EventsGetMonthResponse) {
+  }
+}
+
+message Event {
+  string id = 1;
+  string title = 2;
+  google.protobuf.Timestamp date_started = 3;
+  google.protobuf.Timestamp date_complete = 4;
+  string notice = 5;
+}
+
+message EventAddRequest {
+  string title = 1;
+  google.protobuf.Timestamp date_started = 2;
+  google.protobuf.Timestamp date_complete = 3;
+  string notice = 4;
+}
+
+message EventAddResponse {
+  string id = 1;
+}
+
+message EventEditRequest {
+  string id = 1;
+  Event event = 2;
+}
+
+message EventEditResponse {
+}
+
+message EventDeleteRequest {
+  string id = 1;
+}
+
+message EventDeleteResponse {
+}
+
+message EventGetByIdRequest {
+  string id = 1;
+}
+
+message EventGetByIdResponse {
+  repeated Event events = 1;
+}
+
+message EventGetAllRequest {
+}
+
+message EventGetAllResponse {
+  repeated Event events = 1;
+}
+
+message EventsGetDayRequest {
+}
+message EventsGetDayResponse {
+  repeated Event events = 1;
+}
+
+message EventsGetWeekRequest {
+}
+message EventsGetWeekResponse {
+  repeated Event events = 1;
+}
+
+message EventsGetMonthRequest {
+}
+message EventsGetMonthResponse {
+  repeated Event events = 1;
+}

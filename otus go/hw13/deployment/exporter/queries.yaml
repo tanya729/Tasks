@@ -1,0 +1,21 @@
+calendar_events_count:
+  query: "select count(*) as cnt from calendar.event where deleted=false"
+  master: true
+  metrics:
+    - lag:
+        usage: "GAUGE"
+        description: "Count of active events records"
+calendar_events_count_full:
+  query: "select count(*) as full_cnt from calendar.event"
+  master: true
+  metrics:
+    - lag:
+        usage: "GAUGE"
+        description: "Count of all events records"
+pg_stat_user_count:
+  query: "select n_live_tup as cnt from pg_stat_user_tables where relname='event'"
+  master: true
+  metrics:
+    - lag:
+        usage: "GAUGE"
+        description: "Count of all events records"

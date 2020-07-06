@@ -1,0 +1,142 @@
+version: "3.5"
+services:
+  database:
+    container_name: ${DB_HOST}
+    image: postgres:12.1
+    ports:
+      - "5435:5432"
+    restart: always
+    volumes:
+      - ../migrations:/docker-entrypoint-initdb.d:ro
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    env_file:
+      - ./.env
+    networks:
+      - otus-network
+  rabbit:
+    container_name: ${AMPQ_HOST}
+    image: rabbitmq:3.8-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${AMPQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${AMPQ_PASSWORD}
+    env_file:
+      - ./.env
+    networks:
+      - otus-network
+  api:
+    build:
+      context: ..
+      dockerfile: ./deployment/api/Dockerfile
+    container_name: ${API_NAME}
+    ports:
+      - 8888:${HTTP_PORT}
+    networks:
+      - otus-network
+    depends_on:
+      - database
+    env_file:
+      - ./.env
+    restart: on-failure
+#    tty: true
+  grpc:
+    build:
+      context: ..
+      dockerfile: ./deployment/grpc/Dockerfile
+    container_name: ${GRPC_NAME}
+    ports:
+      - 5001:5001
+    networks:
+      - otus-network
+    depends_on:
+      - database
+    env_file:
+      - ./.env
+    restart: on-failure
+#    tty: true
+  notifier:
+    build:
+      context: ..
+      dockerfile: ./deployment/notifier/Dockerfile
+    container_name: ${NOTIFIER_NAME}
+    networks:
+      - otus-network
+    depends_on:
+      - rabbit
+    env_file:
+      - ./.env
+    environment:
+      WAIT_HOSTS: ${DB_HOST}:5432, ${AMPQ_HOST}:5672
+      WAIT_HOSTS_TIMEOUT: 60
+      WAIT_BEFORE_HOSTS: 10
+      WAIT_SLEEP_INTERVAL: 5
+    restart: on-failure
+  scheduler:
+    container_name: ${SCHEDULER_NAME}
+    build:
+      context: ..
+      dockerfile: ./deployment/scheduler/Dockerfile
+    networks:
+      - otus-network
+    env_file:
+      - ./.env
+    environment:
+      WAIT_HOSTS: ${DB_HOST}:5432, ${AMPQ_HOST}:5672
+      WAIT_HOSTS_TIMEOUT: 60
+      WAIT_BEFORE_HOSTS: 10
+      WAIT_SLEEP_INTERVAL: 5
+    depends_on:
+      - rabbit
+      - database
+    restart: on-failure
+
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: on-failure
+    ports:
+      - "9090:9090"
+    networks:
+      - otus-network
+  pgexporter:
+    image: wrouesnel/postgres_exporter:latest
+    restart: on-failure
+    ports:
+      - "9187:9187"
+    volumes:
+      - ./exporter/queries.yaml:/queries.yaml
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/calendar?sslmode=disable"
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/queries.yaml"
+    networks:
+      - otus-network
+  grafana:
+    image: grafana/grafana:latest-ubuntu
+    container_name: grafana
+    volumes:
+      - ./grafana/datasources:/etc/grafana/datasources
+      - ./grafana/dashboards:/etc/grafana/dashboards
+      - ./grafana/setup.sh:/setup.sh
+    entrypoint: /setup.sh
+    user: root
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: on-failure
+    ports:
+      - 3000:3000
+    networks:
+      - otus-network
+networks:
+  otus-network:
+    name: otus-network

@@ -1,0 +1,25 @@
+global:
+  scrape_interval:     5s
+  evaluation_interval: 5s
+
+# A scrape configuration containing exactly one endpoint to scrape:
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['pgexporter:9187']
+
+  - job_name: 'grpc'
+    static_configs:
+      - targets: ['grpc:2112']
+
+  - job_name: 'rest'
+    static_configs:
+      - targets: ['api:2113']
+
+  - job_name: 'notifier'
+    static_configs:
+      - targets: ['notifier:2114']

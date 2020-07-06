@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+if [[ $BIG_STRANGE_VAR ]]; then
+echo $BIG_STRANGE_VAR
+else
+exit 1
+fi
+
+
